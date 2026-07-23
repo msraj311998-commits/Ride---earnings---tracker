@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>Odo — Ride Earnings Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12151A; --surface:#1B1F26; --surface2:#161A21; --card2:#12151A;
+    --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.10);
+    --text:#EDEFF2; --muted:#8A919E; --dim:#6B7280; --dim2:#4B5563;
+    --amber:#FFB020; --teal:#34D1BF; --red:#FF6B5E;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; }
+  .mono{ font-family:'JetBrains Mono',monospace; }
+  #app{ min-height:100vh; display:flex; flex-direction:column; max-width:480px; margin:0 auto; position:relative; }
+  input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  input[type=date]{ color-scheme: dark; }
+  button{ font-family:inherit; cursor:pointer; }
+
+  header{ position:sticky; top:0; z-index:10; background:rgba(18,21,26,0.95); backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--border); padding:18px 16px 14px;
+    background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.035) 1px, transparent 0); background-size:14px 14px; }
+  .hrow{ display:flex; align-items:center; justify-content:space-between; }
+  .brand{ display:flex; align-items:center; gap:8px; }
+  .logo{ width:32px; height:32px; border-radius:50%; background:rgba(255,176,32,0.15); border:1px solid rgba(255,176,32,0.4);
+    display:flex; align-items:center; justify-content:center; color:var(--amber); font-weight:700; }
+  .title{ font-size:15px; font-weight:700; line-height:1; }
+  .subtitle{ font-size:10px; color:var(--muted); margin-top:2px; }
+  .datepick{ display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border2);
+    border-radius:8px; padding:6px 10px; }
+  .datepick input{ background:transparent; border:none; outline:none; color:var(--text); font-size:12px; width:110px; font-family:'JetBrains Mono',monospace;}
+
+  main{ flex:1; overflow-y:auto; padding:16px 16px 96px; }
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:16px; }
+  .card-head{ display:flex; align-items:center; justify-content:between; gap:8px; margin-bottom:12px; }
+  .card-title{ font-size:13px; font-weight:600; display:flex; align-items:center; gap:8px; }
+
+  .gauge-row{ display:flex; align-items:center; gap:20px; }
+  .gauge-wrap{ position:relative; width:96px; height:96px; flex-shrink:0; }
+  .gauge-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .gauge-amt{ font-size:15px; font-weight:700; }
+  .gauge-label{ font-size:9px; color:var(--muted); }
+  .stat-grid{ flex:1; display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; }
+  .stat-val{ font-size:15px; font-weight:700; }
+  .stat-label{ font-size:9.5px; color:var(--muted); }
+
+  .field-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .field{ display:block; }
+  .field.full{ grid-column:1 / -1; }
+  .field-label{ font-size:9.5px; color:var(--muted); margin-bottom:4px; display:block; }
+  .field input{ width:100%; background:var(--card2); border:1px solid var(--border2); border-radius:8px;
+    padding:8px 10px; font-size:12.5px; color:var(--text); outline:none; font-family:'JetBrains Mono',monospace;}
+  .field input:focus{ border-color:rgba(255,176,32,0.5); }
+
+  .btn{ border:none; border-radius:10px; padding:10px; font-size:12.5px; font-weight:600; width:100%; }
+  .btn-amber{ background:var(--amber); color:var(--bg); }
+  .btn-teal{ background:var(--teal); color:var(--bg); }
+  .btn-outline{ background:transparent; border:1px solid var(--border2); color:var(--muted); }
+  .btn-danger-outline{ background:transparent; border:1px solid rgba(255,107,94,0.4); color:var(--red); }
+  .btn-danger{ background:var(--red); color:var(--bg); }
+
+  .kmdiff{ margin-top:8px; font-size:10.5px; color:var(--muted); display:flex; align-items:center; gap:5px; }
+
+  .chip-row{ display:flex; gap:6px; margin-bottom:12px; }
+  .chip{ display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px; font-size:11.5px; font-weight:500;
+    border:1px solid var(--border2); color:var(--muted); background:transparent; }
+  .chip.active{ background:rgba(255,176,32,0.15); border-color:rgba(255,176,32,0.4); color:var(--amber); }
+  .item-wrap{ display:flex; flex-wrap:wrap; gap:6px; }
+  .item-chip{ padding:7px 10px; border-radius:8px; font-size:11.5px; background:var(--card2); border:1px solid var(--border2); color:var(--text); }
+  .item-chip .p{ color:var(--dim); font-family:'JetBrains Mono',monospace;}
+  .item-chip.picked{ background:rgba(52,209,191,0.15); border-color:rgba(52,209,191,0.4); color:var(--teal); }
+
+  .confirm-row{ margin-top:12px; padding:12px; border-radius:12px; background:var(--card2); border:1px solid var(--border2);
+    display:flex; align-items:center; gap:8px; }
+  .confirm-row .name{ flex:1; font-size:12px; }
+  .confirm-row input{ width:72px; background:var(--surface); border:1px solid var(--border2); border-radius:8px; padding:6px 8px;
+    font-size:12px; color:var(--text); font-family:'JetBrains Mono',monospace; outline:none; }
+  .confirm-row .add{ padding:6px 12px; border-radius:8px; background:var(--amber); color:var(--bg); font-size:11.5px; font-weight:600; border:none; }
+  .confirm-row .x{ background:none; border:none; color:var(--dim); }
+  .qty-stepper{ display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--border2); border-radius:8px; padding:2px; }
+  .qty-btn{ width:24px; height:24px; border:none; border-radius:6px; background:var(--card2); color:var(--text); font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; line-height:1; }
+  .qty-btn:active{ background:rgba(255,176,32,0.2); color:var(--amber); }
+  .qty-val{ font-size:12px; min-width:16px; text-align:center; }
+
+  .exp-row, .ride-row{ display:flex; align-items:center; justify-content:space-between; padding:7px 10px; border-radius:8px;
+    background:var(--card2); border:1px solid rgba(255,255,255,0.04); margin-top:6px; }
+  .exp-row .n{ font-size:11px; color:var(--muted); }
+  .exp-row .amt{ font-size:11.5px; font-family:'JetBrains Mono',monospace;}
+  .del{ background:none; border:none; color:var(--dim2); padding:2px; margin-left:8px; }
+  .del:hover{ color:var(--red); }
+
+  .rideform{ margin-bottom:12px; padding:12px; border-radius:12px; background:var(--card2); border:1px solid var(--border2); }
+  .rideform .g3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:8px; }
+  .rideform .actions{ display:flex; gap:8px; }
+  .rideform .actions .btn{ flex:1; }
+  .rideform .actions .cancel{ flex:none; width:auto; padding:8px 12px; }
+
+  .ride-item{ display:flex; align-items:center; justify-content:space-between; padding:8px 10px; border-radius:8px;
+    background:var(--card2); border:1px solid rgba(255,255,255,0.04); margin-top:6px; }
+  .ride-item .l{ display:flex; align-items:center; gap:10px; font-size:11px; }
+  .ride-item .idx{ font-size:10px; color:var(--dim); width:14px; font-family:'JetBrains Mono',monospace;}
+  .ride-item .path{ font-family:'JetBrains Mono',monospace; color:var(--muted); }
+  .ride-item .kmtag{ font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--dim2); }
+  .ride-item .amt{ font-family:'JetBrains Mono',monospace; font-weight:600; color:var(--teal); font-size:12px; }
+  .ride-item .r{ display:flex; align-items:center; gap:8px; }
+
+  .empty{ text-align:center; padding:26px 0; font-size:11.5px; color:var(--dim); }
+
+  .hist-item{ width:100%; display:flex; align-items:center; justify-content:space-between; padding:12px; border-radius:12px;
+    background:var(--surface); border:1px solid var(--border); text-align:left; margin-bottom:8px; }
+  .hist-item .d{ font-size:12.5px; font-weight:500; }
+  .hist-item .sub{ font-size:10.5px; color:var(--muted); font-family:'JetBrains Mono',monospace; margin-top:2px; }
+  .hist-item .er{ font-size:13px; font-weight:600; color:var(--amber); text-align:right; font-family:'JetBrains Mono',monospace;}
+  .hist-item .net{ font-size:10px; color:var(--muted); text-align:right; font-family:'JetBrains Mono',monospace;}
+
+  .grand-grid{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+
+  nav{ position:fixed; bottom:0; left:50%; transform:translateX(-50%); width:100%; max-width:480px;
+    background:rgba(22,26,33,0.95); backdrop-filter:blur(6px); border-top:1px solid var(--border); display:flex; padding:8px; z-index:20; }
+  nav button{ flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:4px; padding:6px; border-radius:8px; color:var(--dim); }
+  nav button.active{ color:var(--amber); }
+  nav button svg{ width:18px; height:18px; }
+  nav button span{ font-size:10px; font-weight:500; }
+
+  .toast{ position:fixed; top:64px; left:50%; transform:translateX(-50%); background:var(--surface); border:1px solid rgba(255,176,32,0.4);
+    font-size:12px; padding:7px 14px; border-radius:999px; display:flex; align-items:center; gap:6px; z-index:30; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.show{ opacity:1; }
+
+  @keyframes glow{ 0%,100%{ opacity:.55; } 50%{ opacity:1; } }
+  .glow{ animation:glow 2.4s ease-in-out infinite; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="hrow">
+      <div class="brand">
+        <div class="logo">◎</div>
+        <div>
+          <div class="title">Odo</div>
+          <div class="subtitle">daily earnings tracker</div>
+        </div>
+      </div>
+      <label class="datepick">
+        <span style="color:var(--muted); font-size:12px;">📅</span>
+        <input type="date" id="datePick" />
+      </label>
+    </div>
+  </header>
+
+  <main id="main"></main>
+
+  <div class="toast" id="toast"></div>
+
+  <nav>
+    <button data-tab="home" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg><span>Home</span></button>
+    <button data-tab="today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span>Today</span></button>
+    <button data-tab="history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 106 5.3L3 8"/><path d="M12 7v5l4 2"/></svg><span>History</span></button>
+    <button data-tab="data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg><span>Data</span></button>
+  </nav>
+</div>
+
+<script>
+// ---------- storage (localStorage instead of Claude's artifact storage) ----------
+const LS_RIDES = 'rapido_rides', LS_ODO = 'rapido_odo', LS_EXP = 'rapido_expenses', LS_ADJ = 'rapido_adjustments', LS_RESET = 'rapido_reset_points', LS_TARGET = 'rapido_targets';
+const load = (k, fallback) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; } };
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+let rides = load(LS_RIDES, []);
+let odoByDate = load(LS_ODO, {});
+let expenses = load(LS_EXP, []);
+let adjustments = load(LS_ADJ, []);
+let resetPoints = load(LS_RESET, {});
+let monthlyTargets = load(LS_TARGET, {}); // {'YYYY-MM': amount}
+let targetInput = '';
+let targetEditOpen = false;
+let moneyNoteOpen = null; // 'cash' | 'gpay' | 'wallet' | null
+let moneyNoteForm = { amount:'', note:'' };
+let resetConfirmChannel = null;
+let date = todayISO();
+let tab = 'home';
+let homeMonth = todayISO().slice(0,7); // YYYY-MM
+let rideFormOpen = false;
+let rideForm = { pickup: '', drop: '', amount: '', platform: 'rapido', payment: 'cash', appDeduction: '' };
+let editingRideId = null;
+let expCat = 'food';
+let expPayment = 'cash';
+let expPicked = null;
+let expAmt = '';
+let itemFormOpen = false;
+let itemForm = { name: '', price: '', qty: '1' };
+
+const emptyOdo = { bikeOn:'', bikeOff:'', fuel:'', fuelPayment:'cash', hours:'', appSub:'', appSubPayment:'gpay' };
+const FOOD_ITEMS = [
+  {name:'Idly',price:20},{name:'Dosa',price:30},{name:'Pongal',price:30},
+  {name:'Meals',price:60},{name:'Briyani',price:100},{name:'Parota',price:15},{name:'Chapathi',price:15},
+  {name:'Poori',price:20},{name:'Vadai',price:10},
+];
+const SNACK_ITEMS = [
+  {name:'Tea',price:10},{name:'Coffee',price:10},{name:'Milk',price:15},
+  {name:'Lemon Tea',price:15},{name:'Juice',price:25},{name:'Biscuits',price:10},
+  {name:'Egg Bonda',price:15},{name:'Bread Omelette',price:30},
+];
+
+function todayISO(){ const d=new Date(); const off=d.getTimezoneOffset(); return new Date(d.getTime()-off*60000).toISOString().slice(0,10); }
+function fmtDate(iso){ const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'}); }
+function num(v){ return (v===''||v===null||v===undefined||isNaN(v))?0:Number(v); }
+function rupee(v){ return '\u20b9'+num(v).toLocaleString('en-IN'); }
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function paymentLabel(p){ return p==='gpay' ? 'GPay' : p==='wallet' ? 'Wallet' : 'Cash'; }
+function paymentColor(p){ return p==='gpay' ? '#34D1BF' : p==='wallet' ? '#FF6B5E' : '#FFB020'; }
+
+function dayStats(d){
+  const dayRides = rides.filter(r=>r.date===d).sort((a,b)=>a.pickup-b.pickup);
+  const trips = dayRides.length;
+  const earnings = dayRides.reduce((s,r)=>s+num(r.amount),0);
+  // Total ride km = sum of drop km only, per ride (not pickup+drop)
+  const appKm = dayRides.reduce((s,r)=>s+num(r.drop),0);
+  const appDeductionTotal = dayRides.reduce((s,r)=>s+num(r.appDeduction),0);
+  const o = odoByDate[d] || emptyOdo;
+  const dayExpenses = expenses.filter(e=>e.date===d);
+  const foodTotal = dayExpenses.reduce((s,e)=>s+num(e.amount),0);
+  const foodCash = dayExpenses.filter(e=>(e.payment||'cash')==='cash').reduce((s,e)=>s+num(e.amount),0);
+  const foodGpay = dayExpenses.filter(e=>(e.payment||'cash')==='gpay').reduce((s,e)=>s+num(e.amount),0);
+  const totalKm = (num(o.bikeOff)>0 && num(o.bikeOn)>0) ? Math.max(0, num(o.bikeOff)-num(o.bikeOn)) : 0;
+  const fuel = num(o.fuel);
+  const fuelPayment = o.fuelPayment || 'cash';
+  const appSub = num(o.appSub);
+  const appSubPayment = o.appSubPayment || 'gpay';
+  const net = earnings - fuel - foodTotal - appSub;
+  const kmDiff = totalKm - appKm;
+  const rapidoRides = dayRides.filter(r=>(r.platform||'rapido')==='rapido');
+  const uberRides = dayRides.filter(r=>r.platform==='uber');
+  const rapido = { trips: rapidoRides.length, earnings: rapidoRides.reduce((s,r)=>s+num(r.amount),0) };
+  const uber = { trips: uberRides.length, earnings: uberRides.reduce((s,r)=>s+num(r.amount),0) };
+  const gpayRides = dayRides.filter(r=>(r.payment||'cash')==='gpay');
+  const cashRides = dayRides.filter(r=>(r.payment||'cash')==='cash');
+  const walletRides = dayRides.filter(r=>(r.payment||'cash')==='wallet');
+  const gpay = { trips: gpayRides.length, earnings: gpayRides.reduce((s,r)=>s+num(r.amount),0) };
+  const cash = { trips: cashRides.length, earnings: cashRides.reduce((s,r)=>s+num(r.amount),0) };
+  const wallet = { trips: walletRides.length, earnings: walletRides.reduce((s,r)=>s+num(r.amount),0) };
+  // Net cash/gpay/wallet in hand for the day (earnings by channel minus outflows paid from that channel)
+  const cashInHand = cash.earnings - foodCash - (fuelPayment==='cash'?fuel:0) - (appSubPayment==='cash'?appSub:0);
+  const gpayInHand = gpay.earnings - foodGpay - (fuelPayment==='gpay'?fuel:0) - (appSubPayment==='gpay'?appSub:0);
+  const walletInHand = wallet.earnings - (appSubPayment==='wallet'?appSub:0);
+  return { dayRides, trips, earnings, appKm, appDeductionTotal, totalKm, net, kmDiff, o, dayExpenses, foodTotal, foodCash, foodGpay, fuel, fuelPayment, appSub, appSubPayment, rapido, uber, gpay, cash, wallet, cashInHand, gpayInHand, walletInHand };
+}
+function monthStats(ym){
+  const dates = allDates().filter(d=>d.startsWith(ym));
+  return dates.reduce((acc,d)=>{
+    const s = dayStats(d);
+    acc.earnings+=s.earnings; acc.net+=s.net; acc.trips+=s.trips;
+    acc.foodTotal+=s.foodTotal; acc.fuel+=s.fuel; acc.appDeduction+=s.appDeductionTotal;
+    acc.appSub+=s.appSub;
+    acc.km+=s.appKm;
+    return acc;
+  }, {earnings:0,net:0,trips:0,foodTotal:0,fuel:0,appDeduction:0,appSub:0,km:0});
+}
+function monthLabel(ym){
+  const [y,m] = ym.split('-').map(Number);
+  return new Date(y, m-1, 1).toLocaleDateString('en-IN',{month:'long', year:'numeric'});
+}
+function shiftMonth(ym, delta){
+  let [y,m] = ym.split('-').map(Number);
+  m += delta;
+  if(m<1){ m=12; y--; } if(m>12){ m=1; y++; }
+  return y+'-'+String(m).padStart(2,'0');
+}
+function daysInMonth(ym){
+  const [y,m] = ym.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+}
+function plannerStats(ym){
+  const target = num(monthlyTargets[ym]);
+  const total = daysInMonth(ym);
+  const nowYm = todayISO().slice(0,7);
+  let elapsed, remainingDays;
+  if(ym === nowYm){
+    const dayOfMonth = Number(todayISO().slice(8,10));
+    elapsed = dayOfMonth - 1;
+    remainingDays = total - elapsed; // includes today
+  } else if(ym < nowYm){
+    elapsed = total; remainingDays = 0;
+  } else {
+    elapsed = 0; remainingDays = total;
+  }
+  const earned = monthStats(ym).earnings;
+  const flatDaily = total ? target/total : 0;
+  const remainingNeeded = Math.max(0, target - earned);
+  const dailyNeededNow = remainingDays>0 ? remainingNeeded/remainingDays : remainingNeeded;
+  const onTrack = target>0 ? earned >= flatDaily*elapsed : true;
+  return { target, total, elapsed, remainingDays, earned, flatDaily, remainingNeeded, dailyNeededNow, onTrack };
+}
+function allDates(){
+  const s = new Set([...rides.map(r=>r.date), ...Object.keys(odoByDate)]);
+  return [...s].sort((a,b)=>b.localeCompare(a));
+}
+function grandTotals(){
+  return allDates().reduce((acc,d)=>{ const s=dayStats(d);
+    acc.earnings+=s.earnings; acc.net+=s.net; acc.trips+=s.trips; acc.totalKm+=s.totalKm; acc.appKm+=s.appKm; return acc;
+  },{earnings:0,net:0,trips:0,totalKm:0,appKm:0});
+}
+
+let toastTimer;
+function flash(msg){
+  const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove('show'), 1600);
+}
+
+// ---------- actions ----------
+function openRideForm(){ rideForm = {pickup:'', drop:'', amount:'', platform:'rapido', payment:'cash', appDeduction:''}; editingRideId = null; rideFormOpen = true; render(); }
+function closeRideForm(){ rideFormOpen = false; editingRideId = null; rideForm = {pickup:'',drop:'',amount:'',platform:'rapido',payment:'cash',appDeduction:''}; render(); }
+function syncRideFormFromDom(){
+  const $=id=>document.getElementById(id);
+  if($('rf-pickup')) rideForm.pickup = $('rf-pickup').value;
+  if($('rf-drop')) rideForm.drop = $('rf-drop').value;
+  if($('rf-amount')) rideForm.amount = $('rf-amount').value;
+  if($('rf-appded')) rideForm.appDeduction = $('rf-appded').value;
+}
+function setRidePlatform(p){ syncRideFormFromDom(); rideForm.platform = p; render(); }
+function setRidePayment(p){ syncRideFormFromDom(); rideForm.payment = p; render(); }
+function openEditRide(id){
+  const r = rides.find(x=>x.id===id);
+  if(!r) return;
+  rideForm = { pickup:String(r.pickup), drop:String(r.drop), amount:String(r.amount), platform:r.platform||'rapido', payment:r.payment||'cash', appDeduction: r.appDeduction?String(r.appDeduction):'' };
+  editingRideId = id;
+  rideFormOpen = true;
+  render();
+}
+function addRide(){
+  const p=num(rideForm.pickup), dK=num(rideForm.drop), amt=num(rideForm.amount), aded=num(rideForm.appDeduction);
+  if(!p || !dK || !amt){ flash('Fill pickup, drop & amount'); return; }
+  if(editingRideId){
+    const idx = rides.findIndex(r=>r.id===editingRideId);
+    if(idx>-1){
+      rides[idx] = {...rides[idx], pickup:p, drop:dK, amount:amt, platform: rideForm.platform || 'rapido', payment: rideForm.payment || 'cash', appDeduction: aded};
+      save(LS_RIDES, rides);
+      flash('Ride updated');
+    }
+    editingRideId = null;
+    rideFormOpen = false;
+    rideForm = {pickup:'', drop:'', amount:'', platform:'rapido', payment:'cash', appDeduction:''};
+    render();
+    return;
+  }
+  rides.push({id:Date.now(), date, pickup:p, drop:dK, amount:amt, platform: rideForm.platform || 'rapido', payment: rideForm.payment || 'cash', appDeduction: aded});
+  save(LS_RIDES, rides);
+  rideForm = {pickup:'', drop:'', amount:'', platform: rideForm.platform || 'rapido', payment: rideForm.payment || 'cash', appDeduction:''};
+  flash('Ride added'); render();
+}
+function deleteRide(id){ rides = rides.filter(r=>r.id!==id); save(LS_RIDES, rides); render(); }
+
+let odoDraftCache = {};
+function getOdoDraft(){ return odoDraftCache[date] || odoByDate[date] || emptyOdo; }
+function syncOdoDraftFromDom(){
+  const g = id => document.getElementById(id)?.value;
+  const base = getOdoDraft();
+  const merged = { ...base };
+  const bikeOn=g('f-bikeOn'), bikeOff=g('f-bikeOff'), fuel=g('f-fuel'), hours=g('f-hours'), appSub=g('f-appsub');
+  if(bikeOn!==undefined) merged.bikeOn=bikeOn;
+  if(bikeOff!==undefined) merged.bikeOff=bikeOff;
+  if(fuel!==undefined) merged.fuel=fuel;
+  if(hours!==undefined) merged.hours=hours;
+  if(appSub!==undefined) merged.appSub=appSub;
+  odoDraftCache[date] = merged;
+  return merged;
+}
+function setFuelPayment(p){
+  const merged = syncOdoDraftFromDom();
+  merged.fuelPayment = p;
+  odoDraftCache[date] = merged;
+  render();
+}
+function setAppSubPayment(p){
+  const merged = syncOdoDraftFromDom();
+  merged.appSubPayment = p;
+  odoDraftCache[date] = merged;
+  render();
+}
+function saveOdo(){
+  const draft = syncOdoDraftFromDom();
+  odoByDate[date] = draft; save(LS_ODO, odoByDate);
+  delete odoDraftCache[date];
+  flash('Saved'); render();
+}
+
+// ---------- monthly earning planner ----------
+function syncTargetInputFromDom(){ const el=document.getElementById('target-input'); if(el) targetInput = el.value; }
+function openTargetEdit(){ targetEditOpen = true; targetInput = monthlyTargets[homeMonth] ? String(monthlyTargets[homeMonth]) : ''; render(); }
+function saveMonthlyTarget(){
+  syncTargetInputFromDom();
+  const amt = num(targetInput);
+  if(!amt){ flash('Enter a monthly target'); return; }
+  monthlyTargets[homeMonth] = amt;
+  save(LS_TARGET, monthlyTargets);
+  targetInput = ''; targetEditOpen = false;
+  flash('Target saved'); render();
+}
+function clearMonthlyTarget(){
+  delete monthlyTargets[homeMonth];
+  save(LS_TARGET, monthlyTargets);
+  targetInput = ''; targetEditOpen = false;
+  render();
+}
+
+// ---------- money-in-hand: channel balance, notes & reset ----------
+function channelBalance(ch){
+  const resetDate = resetPoints[ch] || null;
+  const dates = allDates().filter(d => !resetDate || d >= resetDate);
+  let total = 0;
+  dates.forEach(d=>{
+    const s = dayStats(d);
+    total += ch==='cash' ? s.cashInHand : ch==='gpay' ? s.gpayInHand : s.walletInHand;
+  });
+  const adjTotal = adjustments
+    .filter(a=>a.channel===ch && (!resetDate || a.date>=resetDate))
+    .reduce((s,a)=>s+num(a.amount),0);
+  return total - adjTotal;
+}
+function channelNotes(ch){
+  const resetDate = resetPoints[ch] || null;
+  return adjustments.filter(a=>a.channel===ch && (!resetDate || a.date>=resetDate)).sort((a,b)=>b.id-a.id);
+}
+function openMoneyNote(ch){ moneyNoteOpen = ch; moneyNoteForm = {amount:'', note:''}; render(); }
+function closeMoneyNote(){ moneyNoteOpen = null; render(); }
+function syncMoneyNoteFromDom(){
+  const $=id=>document.getElementById(id);
+  if($('mn-amount')) moneyNoteForm.amount = $('mn-amount').value;
+  if($('mn-note')) moneyNoteForm.note = $('mn-note').value;
+}
+function addMoneyNote(){
+  const amt = num(moneyNoteForm.amount);
+  if(!amt){ flash('Enter an amount'); return; }
+  const note = (moneyNoteForm.note||'').trim() || 'Spent / transferred';
+  adjustments.push({id:Date.now(), channel: moneyNoteOpen, amount: amt, note, date: todayISO()});
+  save(LS_ADJ, adjustments);
+  flash('Noted');
+  moneyNoteOpen = null; moneyNoteForm = {amount:'', note:''};
+  render();
+}
+function deleteMoneyNote(id){ adjustments = adjustments.filter(a=>a.id!==id); save(LS_ADJ, adjustments); render(); }
+function askResetChannel(ch){ resetConfirmChannel = ch; render(); }
+function cancelResetChannel(){ resetConfirmChannel = null; render(); }
+function doResetChannel(ch){
+  const today = todayISO();
+  resetPoints[ch] = today;
+  save(LS_RESET, resetPoints);
+  adjustments = adjustments.filter(a => !(a.channel===ch && a.date < today));
+  save(LS_ADJ, adjustments);
+  resetConfirmChannel = null;
+  flash('Balance reset');
+  render();
+}
+
+function openItemForm(){ itemForm = {name:'', price:'', qty:'1'}; expPicked = null; itemFormOpen = true; render(); }
+function closeItemForm(){ itemFormOpen = false; itemForm = {name:'', price:'', qty:'1'}; render(); }
+function syncItemFormFromDom(){
+  const $=id=>document.getElementById(id);
+  if($('if-name')) itemForm.name = $('if-name').value;
+  if($('if-price')) itemForm.price = $('if-price').value;
+  if($('if-qty')) itemForm.qty = $('if-qty').value;
+}
+function addCustomItem(){
+  const name = (itemForm.name||'').trim();
+  const price = num(itemForm.price);
+  const qty = Math.max(1, num(itemForm.qty) || 1);
+  if(!name){ flash('Enter item name'); return; }
+  if(!price){ flash('Enter price'); return; }
+  const label = qty>1 ? `${name} x${qty}` : name;
+  expenses.push({id:Date.now(), date, category:expCat, name:label, amount:price*qty, payment:expPayment});
+  save(LS_EXP, expenses);
+  flash(label + ' added');
+  itemFormOpen = false;
+  itemForm = {name:'', price:'', qty:'1'};
+  render();
+}
+function pickExpItem(name, price){ expPicked = {name, price, qty:1}; expAmt = String(price); render(); }
+function cancelExpPick(){ expPicked=null; expAmt=''; render(); }
+function stepExpQty(delta){
+  if(!expPicked) return;
+  const amtEl = document.getElementById('exp-amt-input');
+  const currentAmt = num(amtEl ? amtEl.value : expAmt);
+  const prevQty = expPicked.qty || 1;
+  if(currentAmt) expPicked.price = currentAmt / prevQty;
+  expPicked.qty = Math.max(1, prevQty + delta);
+  expAmt = String(Math.round(expPicked.price * expPicked.qty * 100) / 100);
+  render();
+}
+function confirmExpense(){
+  const amtEl = document.getElementById('exp-amt-input');
+  const amt = num(amtEl ? amtEl.value : expAmt);
+  if(!amt){ flash('Enter an amount'); return; }
+  const qty = expPicked.qty || 1;
+  const label = qty>1 ? `${expPicked.name} x${qty}` : expPicked.name;
+  expenses.push({id:Date.now(), date, category:expCat, name:label, amount:amt, payment:expPayment});
+  save(LS_EXP, expenses);
+  expPicked=null; expAmt='';
+  flash(expenses[expenses.length-1].name + ' added');
+  render();
+}
+function deleteExpense(id){ expenses = expenses.filter(e=>e.id!==id); save(LS_EXP, expenses); render(); }
+
+function clearAllData(){
+  rides=[]; odoByDate={}; expenses=[]; adjustments=[]; resetPoints={}; monthlyTargets={};
+  save(LS_RIDES,rides); save(LS_ODO,odoByDate); save(LS_EXP,expenses); save(LS_ADJ,adjustments); save(LS_RESET,resetPoints); save(LS_TARGET,monthlyTargets);
+  flash('All data cleared'); render();
+}
+
+function exportData(){
+  const payload = { rides, odoByDate, expenses, adjustments, resetPoints, monthlyTargets, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'odo-backup-' + todayISO() + '.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  flash('Backup downloaded');
+}
+function importData(file){
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if(!data || typeof data !== 'object') throw new Error('bad file');
+      rides = Array.isArray(data.rides) ? data.rides : rides;
+      odoByDate = data.odoByDate && typeof data.odoByDate==='object' ? data.odoByDate : odoByDate;
+      expenses = Array.isArray(data.expenses) ? data.expenses : expenses;
+      adjustments = Array.isArray(data.adjustments) ? data.adjustments : adjustments;
+      resetPoints = data.resetPoints && typeof data.resetPoints==='object' ? data.resetPoints : resetPoints;
+      monthlyTargets = data.monthlyTargets && typeof data.monthlyTargets==='object' ? data.monthlyTargets : monthlyTargets;
+      save(LS_RIDES, rides); save(LS_ODO, odoByDate); save(LS_EXP, expenses); save(LS_ADJ, adjustments); save(LS_RESET, resetPoints); save(LS_TARGET, monthlyTargets);
+      flash('Data restored');
+      render();
+    } catch(e) {
+      flash('Invalid backup file');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ---------- render ----------
+function render(){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  const main = document.getElementById('main');
+  if(tab==='home') main.innerHTML = renderHome();
+  else if(tab==='today') main.innerHTML = renderToday();
+  else if(tab==='history') main.innerHTML = renderHistory();
+  else main.innerHTML = renderData();
+  wireEvents();
+}
+
+function renderHome(){
+  const m = monthStats(homeMonth);
+  const isCurrentMonth = homeMonth === todayISO().slice(0,7);
+  return `
+  <div class="card">
+    <div class="hrow" style="margin-bottom:4px;">
+      <button data-month-nav="-1" style="width:28px;height:28px;border-radius:50%;background:var(--card2);border:1px solid var(--border2);color:var(--text);font-size:14px;">‹</button>
+      <div style="font-size:13px;font-weight:700;">${monthLabel(homeMonth)}</div>
+      <button data-month-nav="1" style="width:28px;height:28px;border-radius:50%;background:var(--card2);border:1px solid var(--border2);color:var(--text);font-size:14px;" ${isCurrentMonth?'disabled':''}>›</button>
+    </div>
+    <div style="font-size:10.5px;color:var(--muted);margin-bottom:14px;">${m.trips} trips · ${m.km} km rides</div>
+    <div class="grand-grid" style="margin-bottom:14px;">
+      <div><div class="stat-val mono">${rupee(m.earnings)}</div><div class="stat-label">Total earnings</div></div>
+      <div><div class="stat-val mono" style="color:${m.net>=0?'#34D1BF':'#FF6B5E'}">${rupee(m.net)}</div><div class="stat-label">Net profit</div></div>
+      <div><div class="stat-val mono">${rupee(m.fuel)}</div><div class="stat-label">Fuel amount</div></div>
+    </div>
+    <div class="grand-grid">
+      <div><div class="stat-val mono">${rupee(m.foodTotal)}</div><div class="stat-label">Food &amp; snacks</div></div>
+      <div><div class="stat-val mono" style="color:var(--red)">${rupee(m.appDeduction)}</div><div class="stat-label">App deduction</div></div>
+      <div><div class="stat-val mono">${rupee(m.appSub)}</div><div class="stat-label">App subscription</div></div>
+    </div>
+  </div>
+  ${renderPlanner()}
+  ${renderMoneyInHand()}`;
+}
+
+function renderPlanner(){
+  const p = plannerStats(homeMonth);
+  if(!p.target){
+    return `
+    <div class="card">
+      <div class="card-title" style="margin-bottom:10px;">🎯 Monthly earning planner</div>
+      <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px;">Set how much you need to earn this month — I'll work out your daily target from your rides &amp; odometer entries.</div>
+      <div class="field-grid">
+        <label class="field full"><span class="field-label">Monthly target ₹</span><input type="number" inputmode="decimal" id="target-input" value="${esc(targetInput)}" placeholder="e.g. 30000"/></label>
+      </div>
+      <button class="btn btn-amber" id="btn-save-target" style="margin-top:10px;">Set target</button>
+    </div>`;
+  }
+  const pct = Math.min(1, p.earned / p.target);
+  const behindBy = Math.max(0, p.flatDaily*p.elapsed - p.earned);
+  return `
+  <div class="card">
+    <div class="hrow" style="margin-bottom:10px;">
+      <div class="card-title">🎯 Monthly earning planner</div>
+      <button id="btn-edit-target" style="background:none;border:none;color:var(--muted);font-size:11px;">Edit</button>
+    </div>
+    ${targetEditOpen ? `
+      <div class="field-grid" style="margin-bottom:10px;">
+        <label class="field full"><span class="field-label">Monthly target ₹</span><input type="number" inputmode="decimal" id="target-input" value="${esc(targetInput || String(p.target))}" placeholder="e.g. 30000"/></label>
+      </div>
+      <div class="actions" style="display:flex;gap:8px;margin-bottom:10px;">
+        <button class="btn btn-amber" id="btn-save-target">Save</button>
+        <button class="btn btn-outline" id="btn-clear-target" style="color:var(--red);">Remove target</button>
+      </div>` : `
+      <div class="hrow" style="margin-bottom:10px;">
+        <div class="mono" style="font-size:15px;font-weight:700;">${rupee(p.earned)} <span style="font-size:11px;color:var(--muted);font-weight:400;">/ ${rupee(p.target)} goal</span></div>
+        <div class="mono" style="font-size:11.5px;color:var(--muted);">${Math.round(pct*100)}%</div>
+      </div>
+      <div style="height:8px;border-radius:999px;background:var(--card2);overflow:hidden;margin-bottom:12px;">
+        <div style="height:100%;width:${Math.round(pct*100)}%;background:${p.onTrack?'#34D1BF':'#FFB020'};"></div>
+      </div>
+      <div class="grand-grid" style="margin-bottom:10px;">
+        <div><div class="stat-val mono">${rupee(p.flatDaily)}</div><div class="stat-label">Daily target</div></div>
+        <div><div class="stat-val mono">${p.remainingDays}</div><div class="stat-label">Days left</div></div>
+        <div><div class="stat-val mono" style="color:${p.remainingNeeded>0?'#FFB020':'#34D1BF'}">${rupee(p.remainingNeeded)}</div><div class="stat-label">Still need</div></div>
+      </div>
+      ${p.remainingNeeded>0 ? `
+        <div class="kmdiff" style="margin-bottom:0;">
+          ⏰ Earn <span class="mono" style="color:var(--text);font-weight:700;">${rupee(p.dailyNeededNow)}/day</span> for the rest of this month to hit your goal.
+        </div>` : `
+        <div class="kmdiff" style="margin-bottom:0;color:#34D1BF;">🎉 Target reached for this month!</div>`}
+      ${behindBy>1 ? `
+        <div class="kmdiff" style="margin-top:6px;color:var(--red);">⚠ You're about ${rupee(Math.round(behindBy))} behind where today's pace should be.</div>` : ''}
+    `}
+  </div>`;
+}
+
+function renderMoneyInHand(){
+  const channels = [
+    {key:'cash', label:'Cash', emoji:'💵', color:'#FFB020'},
+    {key:'gpay', label:'GPay', emoji:'💳', color:'#34D1BF'},
+    {key:'wallet', label:'Wallet', emoji:'👛', color:'#FF6B5E'},
+  ];
+  return `
+  <div class="card">
+    <div class="card-title" style="margin-bottom:4px;">💰 Money in hand</div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:12px;">All-time balance per channel, from ride earnings minus food, fuel &amp; subscription paid through it.</div>
+    ${channels.map(c=>{
+      const bal = channelBalance(c.key);
+      const notes = channelNotes(c.key);
+      return `
+      <div style="padding:12px;border-radius:12px;background:var(--card2);border:1px solid var(--border2);margin-bottom:10px;">
+        <div class="hrow" style="margin-bottom:8px;">
+          <div style="font-size:12.5px;font-weight:600;">${c.emoji} ${c.label}</div>
+          <div class="mono" style="font-size:15px;font-weight:700;color:${c.color}">${rupee(bal)}</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-outline" data-money-note="${c.key}" style="font-size:11px;padding:7px;">+ Add note</button>
+          <button class="btn btn-outline" data-reset-channel="${c.key}" style="font-size:11px;padding:7px;color:var(--red);border-color:rgba(255,107,94,0.4);">Reset</button>
+        </div>
+        ${moneyNoteOpen===c.key ? `
+          <div class="rideform" style="margin-top:10px;margin-bottom:0;">
+            <div class="g3" style="grid-template-columns:1fr 1.4fr;">
+              <label class="field"><span class="field-label">Amount ₹</span><input type="number" inputmode="decimal" id="mn-amount" value="${esc(moneyNoteForm.amount)}" placeholder="0"/></label>
+              <label class="field"><span class="field-label">Note</span><input type="text" id="mn-note" value="${esc(moneyNoteForm.note)}" placeholder="Transferred to bank / Spent on..."/></label>
+            </div>
+            <div class="actions">
+              <button class="btn btn-amber" data-save-money-note="${c.key}">Save</button>
+              <button class="btn btn-outline cancel" id="btn-cancel-money-note">✕</button>
+            </div>
+          </div>` : ''}
+        ${resetConfirmChannel===c.key ? `
+          <div style="margin-top:10px;border:1px solid rgba(255,107,94,0.4);background:rgba(255,107,94,0.05);border-radius:10px;padding:10px;">
+            <div style="font-size:11.5px;margin-bottom:8px;">Reset ${c.label} to ₹0 from today? Earlier ${c.label} earnings/notes won't count in this balance anymore (your ride &amp; expense history stays untouched).</div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-danger" data-confirm-reset="${c.key}" style="font-size:11px;">Yes, reset</button>
+              <button class="btn btn-outline" id="btn-cancel-reset" style="font-size:11px;">Cancel</button>
+            </div>
+          </div>` : ''}
+        ${notes.length>0 ? `
+          <div style="margin-top:10px;">
+            ${notes.slice(0,5).map(n=>`
+              <div class="exp-row">
+                <div class="n">${esc(n.note)} <span style="color:var(--dim2);">· ${fmtDate(n.date)}</span></div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div class="amt">-${rupee(n.amount)}</div>
+                  <button class="del" data-del-money-note="${n.id}">🗑</button>
+                </div>
+              </div>`).join('')}
+          </div>` : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderToday(){
+  const s = dayStats(date);
+  const draft = getOdoDraft();
+  const circumference = 2*Math.PI*40;
+  const pct = Math.min(1, s.earnings/1500);
+  const dashOffset = circumference * (1-pct);
+
+  return `
+  <div class="card">
+    <div class="gauge-row">
+      <div class="gauge-wrap">
+        <svg width="96" height="96" viewBox="0 0 96 96" style="transform:rotate(-90deg)">
+          <circle cx="48" cy="48" r="40" fill="none" stroke="#262C35" stroke-width="7"/>
+          <circle cx="48" cy="48" r="40" fill="none" stroke="#FFB020" stroke-width="7" stroke-linecap="round"
+            stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}" class="glow" style="transition:stroke-dashoffset .6s ease"/>
+        </svg>
+        <div class="gauge-center">
+          <div class="gauge-amt mono">${rupee(s.earnings)}</div>
+          <div class="gauge-label">earned</div>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div><div class="stat-val mono">${s.trips}</div><div class="stat-label">Trips</div></div>
+        <div><div class="stat-val mono" style="color:${s.net>=0?'#34D1BF':'#FF6B5E'}">${rupee(s.net)}</div><div class="stat-label">Net profit</div></div>
+        <div><div class="stat-val mono">${s.totalKm || '—'}</div><div class="stat-label">Total KM</div></div>
+        <div><div class="stat-val mono">${s.appKm}</div><div class="stat-label">Ride KM</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="margin-bottom:12px;">⛽ Odometer &amp; fuel</div>
+    <div class="field-grid">
+      <label class="field"><span class="field-label">Bike ON km</span><input type="number" inputmode="decimal" id="f-bikeOn" value="${esc(draft.bikeOn)}" placeholder="0"/></label>
+      <label class="field"><span class="field-label">Bike OFF km</span><input type="number" inputmode="decimal" id="f-bikeOff" value="${esc(draft.bikeOff)}" placeholder="0"/></label>
+      <label class="field"><span class="field-label">Fuel cost ₹</span><input type="number" inputmode="decimal" id="f-fuel" value="${esc(draft.fuel)}" placeholder="0"/></label>
+      <label class="field"><span class="field-label">Online hrs</span><input type="number" inputmode="decimal" id="f-hours" value="${esc(draft.hours)}" placeholder="0"/></label>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border2);">
+      <div class="field-label" style="margin-bottom:6px;">⛽ Fuel paid via</div>
+      <div class="chip-row" style="margin-bottom:0;">
+        <button class="chip ${draft.fuelPayment==='cash'?'active':''}" data-fuel-pay="cash">💵 Cash</button>
+        <button class="chip ${draft.fuelPayment==='gpay'?'active':''}" data-fuel-pay="gpay" style="${draft.fuelPayment==='gpay'?'background:rgba(52,209,191,0.15);border-color:rgba(52,209,191,0.4);color:#34D1BF;':''}">💳 GPay</button>
+      </div>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border2);">
+      <div class="field-label" style="margin-bottom:6px;">📱 App subscription (today)</div>
+      <div class="field-grid">
+        <label class="field"><span class="field-label">Amount ₹</span><input type="number" inputmode="decimal" id="f-appsub" value="${esc(draft.appSub)}" placeholder="0"/></label>
+        <div class="field">
+          <span class="field-label">Paid via</span>
+          <div class="chip-row" style="margin-bottom:0;">
+            <button class="chip ${draft.appSubPayment==='gpay'?'active':''}" data-appsub-pay="gpay" style="${draft.appSubPayment==='gpay'?'background:rgba(52,209,191,0.15);border-color:rgba(52,209,191,0.4);color:#34D1BF;':''}">💳 GPay</button>
+            <button class="chip ${draft.appSubPayment==='wallet'?'active':''}" data-appsub-pay="wallet" style="${draft.appSubPayment==='wallet'?'background:rgba(255,107,94,0.15);border-color:rgba(255,107,94,0.4);color:#FF6B5E;':''}">👛 Wallet</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-amber" id="btn-save-odo" style="margin-top:12px;">Save odometer</button>
+    ${s.totalKm>0 ? `<div class="kmdiff">🛣 KM difference (idle/deadhead): <span class="mono" style="color:var(--text)">${s.kmDiff} km</span></div>` : ''}
+  </div>
+
+  <div class="card">
+    <div class="hrow" style="margin-bottom:12px;">
+      <div class="card-title">🍽 Food &amp; snacks</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="mono" style="font-size:12px;font-weight:600;color:${s.foodTotal?'#FFB020':'#6B7280'}">${rupee(s.foodTotal)}</div>
+        <button id="btn-open-item" style="width:28px;height:28px;border-radius:50%;background:rgba(255,176,32,0.15);border:1px solid rgba(255,176,32,0.4);color:#FFB020;font-size:16px;">+</button>
+      </div>
+    </div>
+    ${itemFormOpen ? `
+      <div class="rideform">
+        <div class="g3">
+          <label class="field"><span class="field-label">Item name</span><input type="text" id="if-name" value="${esc(itemForm.name)}" placeholder="${expCat==='food'?'e.g. Mutton Boti':'e.g. Vada'}"/></label>
+          <label class="field"><span class="field-label">Price ₹</span><input type="number" inputmode="decimal" id="if-price" value="${esc(itemForm.price)}"/></label>
+          <label class="field"><span class="field-label">Qty</span><input type="number" inputmode="decimal" id="if-qty" value="${esc(itemForm.qty)}"/></label>
+        </div>
+        <div class="actions">
+          <button class="btn btn-amber" id="btn-add-item">Add ${expCat==='food'?'food':'snack'}</button>
+          <button class="btn btn-outline cancel" id="btn-cancel-item">✕</button>
+        </div>
+      </div>` : ''}
+    <div class="chip-row">
+      <button class="chip ${expCat==='food'?'active':''}" data-cat="food">🍚 Food</button>
+      <button class="chip ${expCat==='snacks'?'active':''}" data-cat="snacks">☕ Snacks</button>
+    </div>
+    <div class="chip-row" style="margin-bottom:10px;">
+      <span class="field-label" style="align-self:center;margin-right:2px;">Paid via:</span>
+      <button class="chip ${expPayment==='cash'?'active':''}" data-exp-pay="cash">💵 Cash</button>
+      <button class="chip ${expPayment==='gpay'?'active':''}" data-exp-pay="gpay" style="${expPayment==='gpay'?'background:rgba(52,209,191,0.15);border-color:rgba(52,209,191,0.4);color:#34D1BF;':''}">💳 GPay</button>
+    </div>
+    <div class="item-wrap">
+      ${(expCat==='food'?FOOD_ITEMS:SNACK_ITEMS).map(it=>`
+        <button class="item-chip ${expPicked && expPicked.name===it.name ? 'picked':''}" data-pick="${esc(it.name)}" data-price="${it.price}">
+          ${esc(it.name)} <span class="p">₹${it.price}</span>
+        </button>`).join('')}
+    </div>
+    ${expPicked ? `
+      <div class="confirm-row">
+        <div class="name">${esc(expPicked.name)}</div>
+        <div class="qty-stepper">
+          <button class="qty-btn" id="btn-qty-minus">−</button>
+          <span class="qty-val mono">${expPicked.qty||1}</span>
+          <button class="qty-btn" id="btn-qty-plus">+</button>
+        </div>
+        <input type="number" inputmode="decimal" id="exp-amt-input" value="${esc(expAmt)}"/>
+        <button class="add" id="btn-confirm-exp">Add</button>
+        <button class="x" id="btn-cancel-exp">✕</button>
+      </div>` : ''}
+    ${s.dayExpenses.length>0 ? `
+      <div style="margin-top:12px;">
+        ${s.dayExpenses.map(e=>`
+          <div class="exp-row">
+            <div class="n">${esc(e.name)} <span class="mono" style="color:${(e.payment||'cash')==='gpay'?'#34D1BF':'#FFB020'};font-size:9.5px;">· ${(e.payment||'cash')==='gpay'?'GPay':'Cash'}</span></div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="amt">${rupee(e.amount)}</div>
+              <button class="del" data-del-exp="${e.id}">🗑</button>
+            </div>
+          </div>`).join('')}
+      </div>` : ''}
+  </div>
+
+  <div class="card">
+    <div class="hrow" style="margin-bottom:12px;">
+      <div class="card-title">📈 Rides &middot; ${fmtDate(date)}</div>
+      <button id="btn-open-ride" style="width:28px;height:28px;border-radius:50%;background:rgba(52,209,191,0.15);border:1px solid rgba(52,209,191,0.4);color:#34D1BF;font-size:16px;">+</button>
+    </div>
+    ${s.trips>0 ? `<div class="kmdiff" style="margin-top:-6px;margin-bottom:4px;">🟡 Rapido: <span class="mono" style="color:var(--text)">${s.rapido.trips} trips · ${rupee(s.rapido.earnings)}</span> &nbsp; ⬛ Uber: <span class="mono" style="color:var(--text)">${s.uber.trips} trips · ${rupee(s.uber.earnings)}</span></div>` : ''}
+    ${s.trips>0 ? `<div class="kmdiff" style="margin-bottom:4px;">💳 GPay: <span class="mono" style="color:var(--text)">${rupee(s.gpay.earnings)}</span> &nbsp; 💵 Cash: <span class="mono" style="color:var(--text)">${rupee(s.cash.earnings)}</span> &nbsp; 👛 Wallet: <span class="mono" style="color:var(--text)">${rupee(s.wallet.earnings)}</span></div>` : ''}
+    ${s.appDeductionTotal>0 ? `<div class="kmdiff" style="margin-bottom:10px;">➖ App deduction total: <span class="mono" style="color:var(--red)">${rupee(s.appDeductionTotal)}</span></div>` : ''}
+    ${rideFormOpen ? `
+      <div class="rideform">
+        <div class="chip-row" style="margin-bottom:8px;">
+          <button class="chip ${rideForm.platform==='rapido'?'active':''}" data-platform="rapido">🟡 Rapido</button>
+          <button class="chip ${rideForm.platform==='uber'?'active':''}" data-platform="uber" style="${rideForm.platform==='uber'?'background:rgba(52,209,191,0.15);border-color:rgba(52,209,191,0.4);color:#34D1BF;':''}">⬛ Uber</button>
+        </div>
+        <div class="chip-row" style="margin-bottom:8px;">
+          <button class="chip ${rideForm.payment==='cash'?'active':''}" data-payment="cash">💵 Cash</button>
+          <button class="chip ${rideForm.payment==='gpay'?'active':''}" data-payment="gpay" style="${rideForm.payment==='gpay'?'background:rgba(52,209,191,0.15);border-color:rgba(52,209,191,0.4);color:#34D1BF;':''}">💳 GPay</button>
+          <button class="chip ${rideForm.payment==='wallet'?'active':''}" data-payment="wallet" style="${rideForm.payment==='wallet'?'background:rgba(255,107,94,0.15);border-color:rgba(255,107,94,0.4);color:#FF6B5E;':''}">👛 Wallet</button>
+        </div>
+        <div class="g3">
+          <label class="field"><span class="field-label">Pickup km</span><input type="number" inputmode="decimal" id="rf-pickup" value="${esc(rideForm.pickup)}"/></label>
+          <label class="field"><span class="field-label">Drop km</span><input type="number" inputmode="decimal" id="rf-drop" value="${esc(rideForm.drop)}"/></label>
+          <label class="field"><span class="field-label">Amount ₹</span><input type="number" inputmode="decimal" id="rf-amount" value="${esc(rideForm.amount)}"/></label>
+        </div>
+        <div class="field full" style="margin-bottom:8px;"><span class="field-label">App deduction ₹ (commission)</span><input type="number" inputmode="decimal" id="rf-appded" value="${esc(rideForm.appDeduction)}" placeholder="0"/></div>
+        <div class="actions">
+          <button class="btn btn-teal" id="btn-add-ride">${editingRideId ? 'Update ride' : 'Add ride'}</button>
+          <button class="btn btn-outline cancel" id="btn-cancel-ride">✕</button>
+        </div>
+      </div>` : ''}
+    ${s.dayRides.length===0 ? `<div class="empty">No rides logged for this day yet.</div>` :
+      s.dayRides.map((r,i)=>`
+        <div class="ride-item">
+          <div class="l">
+            <div class="idx">${i+1}</div>
+            <div class="path">${r.pickup} → ${r.drop}</div>
+            <div class="kmtag">(${(r.pickup+r.drop)} km)</div>
+            <div class="kmtag" style="color:${r.platform==='uber'?'#34D1BF':'#FFB020'};font-weight:600;">${r.platform==='uber'?'Uber':'Rapido'}</div>
+            <div class="kmtag" style="color:${paymentColor(r.payment)};font-weight:600;">${paymentLabel(r.payment)}</div>
+            ${num(r.appDeduction)>0 ? `<div class="kmtag" style="color:var(--red);">-${rupee(r.appDeduction)} app fee</div>` : ''}
+          </div>
+          <div class="r">
+            <div class="amt">${rupee(r.amount)}</div>
+            <button class="del" data-edit-ride="${r.id}" style="color:var(--amber);">✎</button>
+            <button class="del" data-del-ride="${r.id}">🗑</button>
+          </div>
+        </div>`).join('')}
+  </div>`;
+}
+
+function renderHistory(){
+  const dates = allDates();
+  const g = grandTotals();
+  return `
+  <div class="card">
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">All-time totals</div>
+    <div class="grand-grid">
+      <div><div class="stat-val mono">${rupee(g.earnings)}</div><div class="stat-label">Earnings</div></div>
+      <div><div class="stat-val mono" style="color:${g.net>=0?'#34D1BF':'#FF6B5E'}">${rupee(g.net)}</div><div class="stat-label">Net profit</div></div>
+      <div><div class="stat-val mono">${g.trips}</div><div class="stat-label">Trips</div></div>
+    </div>
+  </div>
+  ${dates.length===0 ? `<div class="empty" style="padding:60px 0;">No entries yet. Log today's rides to see history here.</div>` :
+    dates.map(d=>{ const s=dayStats(d);
+      return `<button class="hist-item" data-goto="${d}">
+        <div><div class="d">${fmtDate(d)}</div><div class="sub">${s.trips} trips · ${s.totalKm||s.appKm} km</div></div>
+        <div><div class="er">${rupee(s.earnings)}</div><div class="net">net ${rupee(s.net)}</div></div>
+      </button>`;
+    }).join('')
+  }`;
+}
+
+function renderData(){
+  return `
+  <div style="padding-top:8px;">
+    <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Data</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.5;">
+      Everything you enter is saved privately in this browser on this device — ride log, odometer readings, fuel and expenses.
+      If you open this file through a file-manager "quick view" (content:// link), the saved data may not carry over each time you reopen it — use <b>Backup</b> below regularly, and <b>Restore</b> after opening a fresh copy of the file.
+    </div>
+    <button class="btn btn-teal" id="btn-export" style="margin-bottom:10px;">⬇ Backup data (.json)</button>
+    <label class="btn btn-outline" for="import-file" style="display:block; text-align:center; margin-bottom:16px;">⬆ Restore from backup</label>
+    <input type="file" id="import-file" accept="application/json" style="display:none;"/>
+    <button class="btn btn-danger-outline" id="btn-ask-clear">Clear all data</button>
+    <div id="clear-confirm"></div>
+  </div>`;
+}
+
+// ---------- events ----------
+function wireEvents(){
+  const $ = id => document.getElementById(id);
+  if($('btn-save-odo')) $('btn-save-odo').onclick = saveOdo;
+  // Live-sync odometer/subscription fields so unsaved edits survive a re-render (e.g. toggling the payment chip)
+  ['f-bikeOn','f-bikeOff','f-fuel','f-hours','f-appsub'].forEach(id => { if($(id)) $(id).oninput = syncOdoDraftFromDom; });
+  if($('btn-open-ride')) $('btn-open-ride').onclick = openRideForm;
+  // Live-sync ride form fields so they aren't wiped out when the platform/payment chip is tapped
+  ['rf-pickup','rf-drop','rf-amount','rf-appded'].forEach(id => { if($(id)) $(id).oninput = syncRideFormFromDom; });
+  if($('btn-add-ride')) $('btn-add-ride').onclick = () => {
+    syncRideFormFromDom();
+    addRide();
+  };
+  if($('btn-cancel-ride')) $('btn-cancel-ride').onclick = closeRideForm;
+  if($('btn-open-item')) $('btn-open-item').onclick = openItemForm;
+  // Live-sync custom item form fields so they aren't wiped out when the payment chip is tapped
+  ['if-name','if-price','if-qty'].forEach(id => { if($(id)) $(id).oninput = syncItemFormFromDom; });
+  if($('btn-add-item')) $('btn-add-item').onclick = () => {
+    syncItemFormFromDom();
+    addCustomItem();
+  };
+  if($('btn-cancel-item')) $('btn-cancel-item').onclick = closeItemForm;
+  if($('btn-confirm-exp')) $('btn-confirm-exp').onclick = confirmExpense;
+  if($('btn-cancel-exp')) $('btn-cancel-exp').onclick = cancelExpPick;
+  if($('btn-qty-minus')) $('btn-qty-minus').onclick = () => stepExpQty(-1);
+  if($('btn-qty-plus')) $('btn-qty-plus').onclick = () => stepExpQty(1);
+  if($('btn-export')) $('btn-export').onclick = exportData;
+  if($('import-file')) $('import-file').onchange = (e) => { const f = e.target.files[0]; if(f) importData(f); };
+  if($('btn-ask-clear')) $('btn-ask-clear').onclick = () => {
+    $('clear-confirm').innerHTML = `
+      <div style="margin-top:12px;border:1px solid rgba(255,107,94,0.4);background:rgba(255,107,94,0.05);border-radius:12px;padding:12px;">
+        <div style="font-size:12px;margin-bottom:12px;">This deletes every ride and odometer entry. This can't be undone.</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-danger" id="btn-do-clear">Yes, clear</button>
+          <button class="btn btn-outline" id="btn-undo-clear">Cancel</button>
+        </div>
+      </div>`;
+    $('btn-do-clear').onclick = clearAllData;
+    $('btn-undo-clear').onclick = () => { $('clear-confirm').innerHTML=''; };
+  };
+  document.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => { expCat=b.dataset.cat; expPicked=null; expAmt=''; itemFormOpen=false; render(); });
+  document.querySelectorAll('[data-exp-pay]').forEach(b => b.onclick = () => { expPayment=b.dataset.expPay; render(); });
+  document.querySelectorAll('[data-fuel-pay]').forEach(b => b.onclick = () => setFuelPayment(b.dataset.fuelPay));
+  document.querySelectorAll('[data-appsub-pay]').forEach(b => b.onclick = () => setAppSubPayment(b.dataset.appsubPay));
+  document.querySelectorAll('[data-platform]').forEach(b => b.onclick = () => setRidePlatform(b.dataset.platform));
+  document.querySelectorAll('[data-payment]').forEach(b => b.onclick = () => setRidePayment(b.dataset.payment));
+  document.querySelectorAll('[data-edit-ride]').forEach(b => b.onclick = () => openEditRide(Number(b.dataset.editRide)));
+  document.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => pickExpItem(b.dataset.pick, Number(b.dataset.price)));
+  document.querySelectorAll('[data-del-exp]').forEach(b => b.onclick = () => deleteExpense(Number(b.dataset.delExp)));
+  document.querySelectorAll('[data-del-ride]').forEach(b => b.onclick = () => deleteRide(Number(b.dataset.delRide)));
+  document.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => { date=b.dataset.goto; $('datePick').value=date; tab='today'; render(); });
+  document.querySelectorAll('[data-month-nav]').forEach(b => b.onclick = () => { homeMonth = shiftMonth(homeMonth, Number(b.dataset.monthNav)); targetEditOpen=false; targetInput=''; render(); });
+  if($('target-input')) $('target-input').oninput = syncTargetInputFromDom;
+  if($('btn-save-target')) $('btn-save-target').onclick = saveMonthlyTarget;
+  if($('btn-edit-target')) $('btn-edit-target').onclick = openTargetEdit;
+  if($('btn-clear-target')) $('btn-clear-target').onclick = clearMonthlyTarget;
+  document.querySelectorAll('[data-money-note]').forEach(b => b.onclick = () => openMoneyNote(b.dataset.moneyNote));
+  ['mn-amount','mn-note'].forEach(id => { if($(id)) $(id).oninput = syncMoneyNoteFromDom; });
+  document.querySelectorAll('[data-save-money-note]').forEach(b => b.onclick = () => { syncMoneyNoteFromDom(); addMoneyNote(); });
+  if($('btn-cancel-money-note')) $('btn-cancel-money-note').onclick = closeMoneyNote;
+  document.querySelectorAll('[data-del-money-note]').forEach(b => b.onclick = () => deleteMoneyNote(Number(b.dataset.delMoneyNote)));
+  document.querySelectorAll('[data-reset-channel]').forEach(b => b.onclick = () => askResetChannel(b.dataset.resetChannel));
+  document.querySelectorAll('[data-confirm-reset]').forEach(b => b.onclick = () => doResetChannel(b.dataset.confirmReset));
+  if($('btn-cancel-reset')) $('btn-cancel-reset').onclick = cancelResetChannel;
+}
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => { tab=b.dataset.tab; render(); });
+const dp = document.getElementById('datePick');
+dp.max = todayISO(); dp.value = date;
+dp.onchange = () => { date = dp.value || todayISO(); rideFormOpen=false; itemFormOpen=false; render(); };
+
+render();
+</script>
+</body>
+</html>
